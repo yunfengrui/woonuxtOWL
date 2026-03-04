@@ -158,6 +158,51 @@ export function useCheckout() {
     });
   }
 
+  function extractOrderFromRedirect(redirectUrl?: string): { orderId?: number; orderKey?: string } {
+    if (!redirectUrl) return {};
+    try {
+      const url = new URL(redirectUrl);
+      const custom = url.searchParams.get('custom');
+      if (custom) {
+        try {
+          const data = JSON.parse(decodeURIComponent(custom));
+          const id = Number(data?.order_id);
+          const key = typeof data?.order_key === 'string' ? data.order_key : undefined;
+          if (id && key) return { orderId: id, orderKey: key };
+        } catch {}
+      }
+      const ret = url.searchParams.get('return');
+      if (ret) {
+        try {
+          const rtn = new URL(decodeURIComponent(ret));
+          const parts = rtn.pathname.split('/');
+          let id: number | undefined;
+          for (let i = 0; i < parts.length; i++) {
+            if (parts[i] === 'order-received' && i + 1 < parts.length) {
+              const num = Number(parts[i + 1]);
+              if (!Number.isNaN(num)) {
+                id = num;
+              }
+              break;
+            }
+          }
+          const key = rtn.searchParams.get('key') || undefined;
+          if (id && key) return { orderId: id, orderKey: key };
+        } catch {}
+      }
+      const cancelRet = url.searchParams.get('cancel_return');
+      if (cancelRet) {
+        try {
+          const cr = new URL(decodeURIComponent(cancelRet));
+          const id = Number(cr.searchParams.get('order_id'));
+          const key = cr.searchParams.get('order') || undefined;
+          if (id && key) return { orderId: id, orderKey: key };
+        } catch {}
+      }
+    } catch {}
+    return {};
+  }
+
   const processCheckout = async (isPaid = false): Promise<any> => {
     const router = useRouter();
 
@@ -173,8 +218,13 @@ export function useCheckout() {
       // Handle account creation if requested
       await handleAccountCreation();
 
-      const orderId = checkout?.order?.databaseId;
-      const orderKey = checkout?.order?.orderKey;
+      let orderId = checkout?.order?.databaseId as number | undefined;
+      let orderKey = checkout?.order?.orderKey as string | undefined;
+      if ((!orderId || !orderKey) && checkout?.redirect) {
+        const extracted = extractOrderFromRedirect(checkout.redirect);
+        orderId = orderId ?? extracted.orderId;
+        orderKey = orderKey ?? extracted.orderKey;
+      }
 
       // Ensure we have required order details
       if (!orderId || !orderKey) {
