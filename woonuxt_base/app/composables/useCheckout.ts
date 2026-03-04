@@ -125,7 +125,6 @@ export function useCheckout() {
 
       const { updateCustomer } = await GqlUpdateCustomer({
         input: {
-          isSession: true,
           shipping,
           billing,
         } as UpdateCustomerInput,
