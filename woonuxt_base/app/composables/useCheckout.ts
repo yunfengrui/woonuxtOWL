@@ -52,14 +52,14 @@ export function useCheckout() {
   };
 
   // Helper function to handle PayPal redirect
-  const handlePayPalRedirect = async (checkout: any, orderId?: string, orderKey?: string): Promise<void> => {
+  const handlePayPalRedirect = async (checkout: any, orderId: string, orderKey: string): Promise<void> => {
     const { replaceQueryParam } = useHelpers();
     const router = useRouter();
 
     const frontEndUrl = window.location.origin;
     let redirectUrl = checkout?.redirect ?? '';
 
-    const payPalReturnUrl = orderId && orderKey ? `${frontEndUrl}/checkout/order-received/${orderId}/?key=${orderKey}&from_paypal=true` : `${frontEndUrl}/checkout/?from_paypal=true`;
+    const payPalReturnUrl = `${frontEndUrl}/checkout/order-received/${orderId}/?key=${orderKey}&from_paypal=true`;
     const payPalCancelUrl = `${frontEndUrl}/checkout/?cancel_order=true&from_paypal=true`;
 
     redirectUrl = replaceQueryParam('return', payPalReturnUrl, redirectUrl);
@@ -69,11 +69,7 @@ export function useCheckout() {
     const isPayPalWindowClosed = await openPayPalWindow(redirectUrl);
 
     if (isPayPalWindowClosed) {
-      if (orderId && orderKey) {
-        router.push(`/checkout/order-received/${orderId}/?key=${orderKey}&fetch_delay=true`);
-      } else {
-        router.push(`/checkout/?from_paypal=true&fetch_delay=true`);
-      }
+      router.push(`/checkout/order-received/${orderId}/?key=${orderKey}&fetch_delay=true`);
     }
   };
 
@@ -180,14 +176,15 @@ export function useCheckout() {
       const orderId = checkout?.order?.databaseId;
       const orderKey = checkout?.order?.orderKey;
 
-      // Handle PayPal redirect first, even if order details are not yet present
+      // Ensure we have required order details
+      if (!orderId || !orderKey) {
+        throw new Error('Order ID or order key is missing from checkout response');
+      }
+
+      // Handle PayPal redirect if needed
       if (checkout?.redirect && isPayPalPayment()) {
-        await handlePayPalRedirect(checkout, orderId ? String(orderId) : undefined, orderKey || undefined);
+        await handlePayPalRedirect(checkout, String(orderId), orderKey);
       } else {
-        // For non-PayPal flows, we must have order details
-        if (!orderId || !orderKey) {
-          throw new Error('Order ID or order key is missing from checkout response');
-        }
         // Standard redirect to order received page
         router.push(`/checkout/order-received/${orderId}/?key=${orderKey}`);
       }

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const { wooNuxtVersionInfo } = useHelpers();
 const { wishlistLink } = useAuth();
 </script>
 
@@ -19,12 +18,8 @@ const { wishlistLink } = useAuth();
       <div class="w-[42.857%] lg:w-auto">
         <div class="mb-1 font-semibold text-gray-900 dark:text-white">{{ $t('general.information') }}</div>
         <div class="text-sm text-gray-700 dark:text-gray-300">
-          <a class="py-1.5 block" href="https://github.com/scottyzen/woonuxt?tab=readme-ov-file#next-generation-front-end-for-woocommerce" target="_blank">{{
-            $t('general.about')
-          }}</a>
-          <a href="/" class="py-1.5 block">{{ $t('general.careers') }}</a>
-          <a href="/" class="py-1.5 block">{{ $t('general.press') }}</a>
-          <a href="https://woonuxt.com/faq" class="py-1.5 block" rel="noreferrer" target="_blank">FAQ's</a>
+          <p class="py-1.5">OwlDeals.co.uk — Discount gifts with UK free shipping.</p>
+          <a class="py-1.5 block" href="mailto:support@owldeals.co.uk">support@owldeals.co.uk</a>
         </div>
       </div>
       <div class="w-[42.857%] lg:w-auto">
@@ -93,8 +88,8 @@ const { wishlistLink } = useAuth();
     <div class="container border-t border-gray-200 dark:border-gray-700 flex items-center justify-center mb-4">
       <div class="copywrite">
         <p class="py-4 text-xs text-center text-gray-600 dark:text-gray-400">
-          <a href="https://woonuxt.com" :title="`WooNuxt v${wooNuxtVersionInfo}`">{{ `WooNuxt v${wooNuxtVersionInfo}` }}</a> - by
-          <a href="https://scottyzen.com" title="Scott Kennedy - Web Developer" target="_blank">Scott Kennedy</a>
+          © OwlDeals.co.uk — Discount gifts with UK free shipping. Contact:
+          <a href="mailto:support@owldeals.co.uk">support@owldeals.co.uk</a>
         </p>
       </div>
       <SocialIcons class="ml-auto" />
