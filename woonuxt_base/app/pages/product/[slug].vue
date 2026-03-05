@@ -297,6 +297,157 @@ const disabledAddToCart = computed(() => {
 });
 
 const addToCartLoading = computed(() => (isOptimisticCartMode.value ? false : isUpdatingCart.value));
+
+const runtimeConfig = useRuntimeConfig();
+const currencyCode = runtimeConfig.public?.CURRENCY_CODE || 'USD';
+
+const canonicalUrl = computed(() => {
+  const path = route.path || '';
+  if (!frontEndUrl) return path;
+  return `${frontEndUrl}${path.startsWith('/') ? path : `/${path}`}`;
+});
+
+const makeAbsolute = (url?: string | null): string => {
+  const value = (url || '').toString();
+  if (!value) return '';
+  if (value.startsWith('http')) return value;
+  if (!frontEndUrl) return value;
+  return `${frontEndUrl}${value.startsWith('/') ? value : `/${value}`}`;
+};
+
+const productImages = computed<string[]>(() => {
+  const imgs: string[] = [];
+  const main = productImage.value?.sourceUrl || '';
+  if (main) imgs.push(makeAbsolute(main));
+  (productGallery.value.nodes || []).forEach((img: any) => {
+    if (img?.sourceUrl) imgs.push(makeAbsolute(img.sourceUrl));
+  });
+  return imgs.length ? imgs : [makeAbsolute('/images/placeholder.jpg')];
+});
+
+const availabilityMap: Record<StockStatusEnum, string> = {
+  [StockStatusEnum.IN_STOCK]: 'https://schema.org/InStock',
+  [StockStatusEnum.OUT_OF_STOCK]: 'https://schema.org/OutOfStock',
+  [StockStatusEnum.ON_BACKORDER]: 'https://schema.org/BackOrder',
+};
+
+const toNumber = (value?: string | null): number | null => {
+  if (!value) return null;
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const selectedPrice = computed<number | null>(() => {
+  const target: any = priceTarget.value || {};
+  const sale = target.rawSalePrice ?? target.salePrice ?? null;
+  const regular = target.rawRegularPrice ?? target.regularPrice ?? target.price ?? null;
+  return toNumber(sale) ?? toNumber(regular);
+});
+
+const jsonLdOffers = computed<any | null>(() => {
+  if (isVariableProduct.value && !activeVariation.value) {
+    const offers = (product.value?.variations?.nodes || [])
+      .map((v: any) => {
+        const price =
+          toNumber(v?.rawSalePrice) ??
+          toNumber(v?.salePrice) ??
+          toNumber(v?.rawRegularPrice) ??
+          toNumber(v?.regularPrice) ??
+          null;
+        if (price == null) return null;
+        return {
+          '@type': 'Offer',
+          priceCurrency: currencyCode,
+          price,
+          availability: availabilityMap[v?.stockStatus as StockStatusEnum] || 'https://schema.org/InStock',
+          url: canonicalUrl.value,
+        };
+      })
+      .filter(Boolean);
+    if (offers.length) {
+      const prices = offers.map((o: any) => o.price as number);
+      return {
+        '@type': 'AggregateOffer',
+        priceCurrency: currencyCode,
+        lowPrice: Math.min(...prices),
+        highPrice: Math.max(...prices),
+        offers,
+      };
+    }
+  }
+  const price = selectedPrice.value;
+  if (price != null) {
+    return {
+      '@type': 'Offer',
+      priceCurrency: currencyCode,
+      price,
+      availability: availabilityMap[stockStatus.value as StockStatusEnum] || 'https://schema.org/InStock',
+      url: canonicalUrl.value,
+      itemCondition: 'https://schema.org/NewCondition',
+    };
+  }
+  return null;
+});
+
+const jsonLdProduct = computed(() => {
+  const description = (product.value?.shortDescription || product.value?.description || '').replace(/<[^>]+>/g, '').trim();
+  const data: any = {
+    '@context': 'https://schema.org/',
+    '@type': 'Product',
+    name: product.value?.name || '',
+    sku: product.value?.sku || undefined,
+    image: productImages.value,
+    description,
+    offers: jsonLdOffers.value || undefined,
+    url: canonicalUrl.value,
+  };
+  if (averageRating.value && reviewCount.value) {
+    data.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: averageRating.value,
+      reviewCount: reviewCount.value,
+    };
+  }
+  return data;
+});
+
+const breadcrumbJsonLd = computed(() => {
+  const items: any[] = [];
+  items.push({ '@type': 'ListItem', position: 1, name: 'Home', item: frontEndUrl || '/' });
+  const category = product.value?.productCategories?.nodes?.[0] || null;
+  if (category) {
+    items.push({
+      '@type': 'ListItem',
+      position: 2,
+      name: category.name || '',
+      item: `${frontEndUrl}/product-category/${decodeURIComponent(category?.slug || '')}`,
+    });
+  }
+  items.push({
+    '@type': 'ListItem',
+    position: items.length + 1,
+    name: product.value?.name || '',
+    item: canonicalUrl.value,
+  });
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items,
+  };
+});
+
+useHead({
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(jsonLdProduct.value),
+    },
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(breadcrumbJsonLd.value),
+    },
+  ],
+});
 </script>
 
 <template>
